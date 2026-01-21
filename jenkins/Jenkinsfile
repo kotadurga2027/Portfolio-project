@@ -15,6 +15,7 @@ pipeline {
                 dir('terraform') {
                     sh 'terraform init'
                     sh 'terraform apply -auto-approve'
+                    /// init the terraform file and apply
                 }
             }
         }
