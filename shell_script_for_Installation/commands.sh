@@ -12,6 +12,17 @@ fi
 echo "=== Running commands.sh as root ==="
 
 # ==============================
+# Install essential tools & CA certificates first
+# ==============================
+echo "Installing CA certificates, curl, wget, openssl, unzip..."
+dnf install -y ca-certificates curl wget openssl unzip
+update-ca-trust
+
+# Force curl & wget to use TLS1.2 by default
+export CURL_CA_BUNDLE=/etc/ssl/certs/ca-bundle.crt
+export GIT_SSL_CAINFO=/etc/ssl/certs/ca-bundle.crt
+
+# ==============================
 # Update system packages
 # ==============================
 echo "Updating system packages..."
@@ -30,16 +41,10 @@ echo "Installing Git..."
 dnf install -y git
 
 # ==============================
-# Install wget & curl
-# ==============================
-echo "Installing wget and curl..."
-dnf install -y wget curl unzip
-
-# ==============================
 # Install Jenkins
 # ==============================
 echo "Installing Jenkins..."
-wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
+wget --secure-protocol=TLSv1_2 -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
 rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
 dnf install -y jenkins
 
@@ -74,7 +79,7 @@ terraform -version
 # Install kubectl
 # ==============================
 echo "Installing kubectl..."
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+curl --tlsv1.2 -LO "https://dl.k8s.io/release/$(curl -L -s --tlsv1.2 https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 chmod +x kubectl
 mv kubectl /usr/local/bin/
 kubectl version --client
@@ -83,7 +88,7 @@ kubectl version --client
 # Install AWS CLI v2
 # ==============================
 echo "Installing AWS CLI v2..."
-curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
+curl --tlsv1.2 "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
 unzip /tmp/awscliv2.zip -d /tmp
 /tmp/aws/install
 aws --version
@@ -92,4 +97,6 @@ aws --version
 # Finish
 # ==============================
 echo "=== Bootstrap completed! ==="
-echo "Jenkins, Docker, Terraform, kubectl, Git, Java, and AWS CLI installed."
+echo "Installed: Jenkins, Docker, Terraform, kubectl, Git, Java, AWS CLI"
+echo "Jenkins URL: http://<EC2_PUBLIC_IP>:8080"
+echo "Initial admin password: sudo cat /var/lib/jenkins/secrets/initialAdminPassword"
