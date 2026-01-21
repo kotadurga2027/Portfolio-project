@@ -1,21 +1,44 @@
 pipeline {
     agent any
 
+    environment {
+        AWS_DEFAULT_REGION = 'us-east-1'
+        AWS_ACCESS_KEY_ID = credentials('aws-access-key-id')
+        AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
+        KUBECONFIG = '/var/lib/jenkins/.kube/config'
+    }
+
     stages {
-        stage('Clone Repo') {
+
+        stage('Terraform Infra') {
             steps {
-                git 'https://github.com/kotadurga2027/Portfolio-project.git'
+                dir('terraform') {
+                    sh 'terraform init'
+                    sh 'terraform apply -auto-approve'
+                }
             }
         }
-         stage('Build Docker image') {
+
+        stage('Build Docker Image') {
             steps {
                 sh 'docker build -t portfolio-app .'
             }
-         }
-         state('Run container') {
+        }
+
+        stage('Deploy to Kubernetes') {
             steps {
-                sh 'docker run -d -p 3000:3000 portfolio-app'
+                dir('kubernetes') {
+                    sh 'kubectl apply -f .'
+                }
             }
-         }
+        }
+
+        stage('EC2 Automation') {
+            steps {
+                dir('python-automation') {
+                    sh 'python3 ec2_start.py'
+                }
+            }
+        }
     }
 }
