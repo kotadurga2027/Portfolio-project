@@ -29,7 +29,7 @@ pipeline {
         stage('EC2 Automation') {
             steps {
                 dir('python-automation') {
-                    sh 'python3 ec2_start.py'
+                    sh 'python3 star_stop_ec2.py'
                 }
             }
         }
