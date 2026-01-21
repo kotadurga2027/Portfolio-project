@@ -1,0 +1,21 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Clone Repo') {
+            steps {
+                git 'https://github.com/kotadurga2027/Portfolio-project.git'
+            }
+        }
+         stage('Build Docker image') {
+            steps {
+                sh 'docker build -t portfolio-app .'
+            }
+         }
+         state('Run container') {
+            steps {
+                sh 'docker run -d -p 3000:3000 portfolio-app'
+            }
+         }
+    }
+}
