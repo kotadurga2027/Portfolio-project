@@ -24,11 +24,16 @@ dnf install -y java-17-openjdk
 # ==============================
 # Install Jenkins
 # ==============================
-wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
+echo "Installing Jenkins..."
+
+curl -fsSL --tlsv1.2 \
+https://pkg.jenkins.io/redhat-stable/jenkins.repo \
+-o /etc/yum.repos.d/jenkins.repo
+
 rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+
 dnf install -y jenkins
-systemctl enable jenkins
-systemctl start jenkins
+
 
 # ==============================
 # Install Docker
