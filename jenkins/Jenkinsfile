@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    environment {
+        KUBECONFIG = '/var/lib/jenkins/.kube/config'
+    }
+
     stages {
 
         stage('Terraform Infra') {
@@ -14,20 +18,21 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t portfolio-app .'
+                sh '''
+                eval $(minikube docker-env)
+                docker build -t portfolio-app ./app
+                '''
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
                 dir('kubernetes') {
-                    sh '''
-                    export KUBECONFIG=/var/lib/jenkins/.kube/config
-                    kubectl apply -f .
-                    '''
+                    sh 'kubectl apply -f .'
                 }
             }
         }
+
         stage('EC2 Automation') {
             steps {
                 dir('python-automation') {
