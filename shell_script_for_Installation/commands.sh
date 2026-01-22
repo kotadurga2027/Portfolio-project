@@ -72,29 +72,30 @@ install minikube-linux-amd64 /usr/local/bin/minikube
 rm -f minikube-linux-amd64
 
 # ==============================
+# Verify Minikube installation
+# ==============================
+echo "Verifying Minikube..."
+sudo -u ec2-user -i bash <<'EOF'
+export PATH=$PATH:/usr/local/bin
+which minikube
+minikube version
+EOF
+
+# ==============================
 # Start Minikube as ec2-user
 # ==============================
 echo "Starting Minikube..."
-sudo -u ec2-user -H bash << 'EOF'
+sudo -u ec2-user -i bash <<'EOF'
 export MINIKUBE_HOME=/home/ec2-user
+export PATH=$PATH:/usr/local/bin
 minikube start --driver=docker
 EOF
 
 # ==============================
-# Copy kubeconfig to Jenkins user
+# Copy kubeconfig to Jenkins
 # ==============================
-echo "Configuring kubeconfig for Jenkins..."
 mkdir -p /var/lib/jenkins/.kube
 cp /home/ec2-user/.kube/config /var/lib/jenkins/.kube/config
 chown -R jenkins:jenkins /var/lib/jenkins/.kube
 chmod 600 /var/lib/jenkins/.kube/config
 
-# ==============================
-# Restart Jenkins
-# ==============================
-systemctl restart jenkins
-
-echo "=== SETUP COMPLETE ==="
-echo "Jenkins URL: http://<EC2_PUBLIC_IP>:8080"
-echo "Verify Kubernetes access as Jenkins:"
-echo "sudo -u jenkins kubectl get nodes"
