@@ -5,6 +5,7 @@ set -e
 # Ensure script is running as root
 # ==============================
 if [ "$EUID" -ne 0 ]; then
+    echo "Re-running with sudo..."
     exec sudo "$0" "$@"
 fi
 
@@ -25,44 +26,47 @@ dnf install -y java-17-openjdk
 # Install Jenkins
 # ==============================
 echo "Installing Jenkins..."
-
-curl -fsSL --tlsv1.2 \
-https://pkg.jenkins.io/redhat-stable/jenkins.repo \
--o /etc/yum.repos.d/jenkins.repo
-
+curl -fsSL --tlsv1.2 https://pkg.jenkins.io/redhat-stable/jenkins.repo -o /etc/yum.repos.d/jenkins.repo
 rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
-
 dnf install -y jenkins
 
+systemctl enable jenkins
+systemctl start jenkins
 
 # ==============================
 # Install Docker
 # ==============================
+echo "Installing Docker..."
 dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
-dnf install -y docker-ce docker-ce-cli containerd.io
+dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
 systemctl enable docker
 systemctl start docker
 
+# Add Jenkins & ec2-user to Docker group
 usermod -aG docker jenkins
 usermod -aG docker ec2-user
 
 # ==============================
 # Install Terraform
 # ==============================
+echo "Installing Terraform..."
 dnf config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
 dnf install -y terraform
 
 # ==============================
 # Install kubectl
 # ==============================
+echo "Installing kubectl..."
 K8S_VERSION=$(curl -fsSL https://dl.k8s.io/release/stable.txt)
-curl -fsSL -o /usr/local/bin/kubectl \
-  https://dl.k8s.io/release/${K8S_VERSION}/bin/linux/amd64/kubectl
+curl -fsSL -o /usr/local/bin/kubectl https://dl.k8s.io/release/${K8S_VERSION}/bin/linux/amd64/kubectl
 chmod +x /usr/local/bin/kubectl
+kubectl version --client=true
 
 # ==============================
 # Install Minikube
 # ==============================
+echo "Installing Minikube..."
 curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
 install minikube-linux-amd64 /usr/local/bin/minikube
 rm -f minikube-linux-amd64
@@ -70,11 +74,16 @@ rm -f minikube-linux-amd64
 # ==============================
 # Start Minikube as ec2-user
 # ==============================
-sudo -u ec2-user minikube start --driver=docker
+echo "Starting Minikube..."
+sudo -u ec2-user -H bash << 'EOF'
+export MINIKUBE_HOME=/home/ec2-user
+minikube start --driver=docker
+EOF
 
 # ==============================
-# Copy kubeconfig to Jenkins
+# Copy kubeconfig to Jenkins user
 # ==============================
+echo "Configuring kubeconfig for Jenkins..."
 mkdir -p /var/lib/jenkins/.kube
 cp /home/ec2-user/.kube/config /var/lib/jenkins/.kube/config
 chown -R jenkins:jenkins /var/lib/jenkins/.kube
@@ -86,6 +95,6 @@ chmod 600 /var/lib/jenkins/.kube/config
 systemctl restart jenkins
 
 echo "=== SETUP COMPLETE ==="
-echo "Jenkins: http://<EC2_PUBLIC_IP>:8080"
-echo "Verify with:"
+echo "Jenkins URL: http://<EC2_PUBLIC_IP>:8080"
+echo "Verify Kubernetes access as Jenkins:"
 echo "sudo -u jenkins kubectl get nodes"
