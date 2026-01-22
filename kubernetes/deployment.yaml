@@ -15,5 +15,6 @@ spec:
       containers:
       - name: node
         image: portfolio-app
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3000

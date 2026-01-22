@@ -25,11 +25,9 @@ pipeline {
                     export KUBECONFIG=/var/lib/jenkins/.kube/config
                     kubectl apply -f .
                     '''
+                }
+            }
         }
-    }
-}
-
-
         stage('EC2 Automation') {
             steps {
                 dir('python-automation') {
