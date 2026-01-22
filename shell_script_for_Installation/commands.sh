@@ -32,11 +32,13 @@ lvextend -L +20G /dev/RootVG/rootVol
 echo "Growing root filesystem..."
 xfs_growfs /
 
-# ------------------------------
-# Step 4: Extend /var LV by 30G
-# ------------------------------
-echo "Extending /var volume by 30G..."
-lvextend -L +30G /dev/RootVG/varVol
+# Step 4: Resize PV to use new space
+echo "Resizing PV to use partition expansion..."
+pvresize /dev/nvme0n1p4
+
+# Step 5: Extend /var LV using all free space
+echo "Extending /var volume with available free space..."
+lvextend -l +100%FREE /dev/RootVG/varVol
 
 # Resize filesystem for /var
 echo "Growing /var filesystem..."
