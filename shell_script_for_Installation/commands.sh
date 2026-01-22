@@ -46,7 +46,7 @@ usermod -aG docker jenkins
 usermod -aG docker ec2-user
 
 # ==============================
-# Install Terraform
+# Install Terraform for instance creation
 # ==============================
 echo "Installing Terraform..."
 dnf config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
