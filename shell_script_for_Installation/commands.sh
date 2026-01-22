@@ -1,13 +1,55 @@
 #!/bin/bash
 set -e
 
-# ==============================
-# Ensure script is running as root
-# ==============================
+# Ensure script is run as root
 if [ "$EUID" -ne 0 ]; then
-    echo "Re-running with sudo..."
-    exec sudo "$0" "$@"
+    echo "Please run as root."
+    exit 1
 fi
+
+
+echo "=== Starting disk and LVM resize ==="
+# ------------------------------
+# Step 1: Show current disk layout
+# ------------------------------
+echo "Current disk layout:"
+lsblk
+
+# ------------------------------
+# Step 2: Resize partition nvme0n1p4
+# ------------------------------
+echo "Resizing partition /dev/nvme0n1p4..."
+growpart /dev/nvme0n1 4
+partprobe /dev/nvme0n1
+
+# ------------------------------
+# Step 3: Extend root LV by 20G
+# ------------------------------
+echo "Extending root volume by 20G..."
+lvextend -L +20G /dev/RootVG/rootVol
+
+# Resize filesystem for root
+echo "Growing root filesystem..."
+xfs_growfs /
+
+# ------------------------------
+# Step 4: Extend /var LV by 30G
+# ------------------------------
+echo "Extending /var volume by 30G..."
+lvextend -L +30G /dev/RootVG/varVol
+
+# Resize filesystem for /var
+echo "Growing /var filesystem..."
+xfs_growfs /var
+
+# ------------------------------
+# Step 5: Verify changes
+# ------------------------------
+echo "=== Disk resize complete ==="
+lsblk
+df -h
+
+echo "=== Done ==="
 
 echo "=== Running bootstrap script ==="
 
