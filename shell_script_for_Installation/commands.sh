@@ -79,23 +79,33 @@ which minikube
 minikube version
 EOF
 
+
 # ==============================
-# Start Minikube as ec2-user
+# Start Minikube as Jenkins user
 # ==============================
-echo "Starting Minikube..."
-sudo -u ec2-user -i bash <<'EOF'
-export MINIKUBE_HOME=/home/ec2-user
+echo "Starting Minikube for Jenkins..."
+sudo -u jenkins -i bash <<'EOF'
+export MINIKUBE_HOME=/var/lib/jenkins
 export PATH=$PATH:/usr/local/bin
 minikube start --driver=docker
 EOF
 
+
+# # ==============================
+# # Copy kubeconfig to Jenkins
+# # ==============================
+# mkdir -p /var/lib/jenkins/.kube
+# cp /home/ec2-user/.kube/config /var/lib/jenkins/.kube/config
+# chown -R jenkins:jenkins /var/lib/jenkins/.kube
+# chmod 600 /var/lib/jenkins/.kube/config
+
+# # ==============================
+
 # ==============================
-# Copy kubeconfig to Jenkins
+# Ensure Jenkins kubeconfig exists
 # ==============================
 mkdir -p /var/lib/jenkins/.kube
-cp /home/ec2-user/.kube/config /var/lib/jenkins/.kube/config
 chown -R jenkins:jenkins /var/lib/jenkins/.kube
 chmod 600 /var/lib/jenkins/.kube/config
 
-# ==============================
 
