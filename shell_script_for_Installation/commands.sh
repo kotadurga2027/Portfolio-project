@@ -97,3 +97,5 @@ cp /home/ec2-user/.kube/config /var/lib/jenkins/.kube/config
 chown -R jenkins:jenkins /var/lib/jenkins/.kube
 chmod 600 /var/lib/jenkins/.kube/config
 
+# ==============================
+
