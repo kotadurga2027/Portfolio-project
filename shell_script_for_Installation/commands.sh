@@ -7,52 +7,6 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-
-echo "=== Starting disk and LVM resize ==="
-# ------------------------------
-# Step 1: Show current disk layout
-# ------------------------------
-echo "Current disk layout:"
-lsblk
-
-# ------------------------------
-# Step 2: Resize partition nvme0n1p4
-# ------------------------------
-echo "Resizing partition /dev/nvme0n1p4..."
-growpart /dev/nvme0n1 4
-partprobe /dev/nvme0n1
-
-# ------------------------------
-# Step 3: Extend root LV by 20G
-# ------------------------------
-echo "Extending root volume by 20G..."
-lvextend -L +20G /dev/RootVG/rootVol
-
-# Resize filesystem for root
-echo "Growing root filesystem..."
-xfs_growfs /
-
-# Step 4: Resize PV to use new space
-echo "Resizing PV to use partition expansion..."
-pvresize /dev/nvme0n1p4
-
-# Step 5: Extend /var LV using all free space
-echo "Extending /var volume with available free space..."
-lvextend -l +100%FREE /dev/RootVG/varVol
-
-# Resize filesystem for /var
-echo "Growing /var filesystem..."
-xfs_growfs /var
-
-# ------------------------------
-# Step 5: Verify changes
-# ------------------------------
-echo "=== Disk resize complete ==="
-lsblk
-df -h
-
-echo "=== Done ==="
-
 echo "=== Running bootstrap script ==="
 
 # ==============================
