@@ -106,6 +106,9 @@ sudo -u jenkins podman info
 echo "Bootstrap completed successfully!"
 
 
+# ..........................................................
+
+
 
 # #!/bin/bash
 # set -e
