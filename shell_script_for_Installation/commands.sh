@@ -36,22 +36,27 @@ systemctl start jenkins
 # ==============================
 echo "Configuring Docker permissions..."
 
+# Create docker group if it does not exist
+if ! getent group docker >/dev/null; then
+    groupadd docker
+fi
+
 # Add users to docker group
 usermod -aG docker jenkins
 usermod -aG docker ec2-user
 
 # Ensure docker socket permissions
-chown root:docker /var/run/docker.sock
-chmod 660 /var/run/docker.sock
+if [ -S /var/run/docker.sock ]; then
+    chown root:docker /var/run/docker.sock
+    chmod 660 /var/run/docker.sock
+fi
 
-# Restart services so group membership is applied
+# Restart services so permissions take effect
 systemctl restart docker
 systemctl restart jenkins
 
-# Wait for Jenkins to come up
+# Wait for Jenkins to come up cleanly
 sleep 20
-
-
 
 # ==============================
 # Install Terraform for instance creation
