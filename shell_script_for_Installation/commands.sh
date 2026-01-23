@@ -32,18 +32,26 @@ systemctl enable jenkins
 systemctl start jenkins
 
 # ==============================
-# Install Docker
+# Configure Docker permissions (AUTOMATED)
 # ==============================
-echo "Installing Docker..."
-dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
-dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+echo "Configuring Docker permissions..."
 
-systemctl enable docker
-systemctl start docker
-
-# Add Jenkins & ec2-user to Docker group
+# Add users to docker group
 usermod -aG docker jenkins
 usermod -aG docker ec2-user
+
+# Ensure docker socket permissions
+chown root:docker /var/run/docker.sock
+chmod 660 /var/run/docker.sock
+
+# Restart services so group membership is applied
+systemctl restart docker
+systemctl restart jenkins
+
+# Wait for Jenkins to come up
+sleep 20
+
+
 
 # ==============================
 # Install Terraform for instance creation
