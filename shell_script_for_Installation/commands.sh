@@ -1,128 +1,97 @@
 #!/bin/bash
 set -e
 
-#####################################
+#################################
 # Root check
-#####################################
+#################################
 if [ "$EUID" -ne 0 ]; then
-  echo "Please run as root"
+  echo "Run as root"
   exit 1
 fi
 
 echo "=== BOOTSTRAP STARTED ==="
 
-#####################################
+#################################
 # Base tools
-#####################################
-dnf install -y ca-certificates curl wget unzip git yum-utils
+#################################
+dnf install -y curl wget unzip git ca-certificates yum-utils
 update-ca-trust
 
-#####################################
-# Java 17 (Jenkins requirement)
-#####################################
+#################################
+# Java 17
+#################################
 dnf install -y java-17-openjdk
 
-#####################################
+#################################
 # Jenkins
-#####################################
-echo "Installing Jenkins..."
+#################################
 curl -fsSL https://pkg.jenkins.io/redhat-stable/jenkins.repo \
   -o /etc/yum.repos.d/jenkins.repo
-
 rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
 
 dnf install -y jenkins
 systemctl enable jenkins
 systemctl start jenkins
 
-#####################################
-# Docker (Amazon Linux SAFE way)
-#####################################
-echo "Installing Docker..."
-dnf install -y docker
+#################################
+# Podman (SUPPORTED)
+#################################
+echo "Installing Podman..."
+dnf install -y podman podman-docker
 
-systemctl enable docker
-systemctl start docker
+#################################
+# Allow Jenkins to run containers
+#################################
+usermod -aG podman jenkins
+usermod -aG podman ec2-user
 
-#####################################
-# Docker permissions
-#####################################
-echo "Configuring Docker permissions..."
-
-# Ensure docker group exists
-getent group docker || groupadd docker
-
-# Add users
-usermod -aG docker jenkins
-usermod -aG docker ec2-user
-
-# Restart services so group takes effect
-systemctl restart docker
-systemctl restart jenkins
-
-sleep 20
-
-#####################################
+#################################
 # Terraform
-#####################################
-echo "Installing Terraform..."
+#################################
 dnf config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
 dnf install -y terraform
 
-#####################################
+#################################
 # kubectl
-#####################################
-echo "Installing kubectl..."
+#################################
 K8S_VERSION=$(curl -fsSL https://dl.k8s.io/release/stable.txt)
 curl -fsSL -o /usr/local/bin/kubectl \
   https://dl.k8s.io/release/${K8S_VERSION}/bin/linux/amd64/kubectl
 chmod +x /usr/local/bin/kubectl
 
-#####################################
+#################################
 # Minikube
-#####################################
-echo "Installing Minikube..."
+#################################
 curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
 install minikube-linux-amd64 /usr/local/bin/minikube
 rm -f minikube-linux-amd64
 
-#####################################
-# Start Minikube as ec2-user
-#####################################
-echo "Starting Minikube as ec2-user..."
+#################################
+# Start Minikube (Podman driver)
+#################################
 sudo -u ec2-user -i bash <<'EOF'
 export PATH=/usr/local/bin:$PATH
 export MINIKUBE_HOME=/home/ec2-user
 
 minikube delete || true
-minikube start --driver=docker --memory=3072 --cpus=2
+minikube start --driver=podman --memory=3072 --cpus=2
 EOF
 
-#####################################
-# Share kubeconfig with Jenkins
-#####################################
-echo "Configuring kubeconfig for Jenkins..."
+#################################
+# Jenkins kubeconfig
+#################################
 mkdir -p /var/lib/jenkins/.kube
 cp /home/ec2-user/.kube/config /var/lib/jenkins/.kube/config
 chown -R jenkins:jenkins /var/lib/jenkins/.kube
 chmod 600 /var/lib/jenkins/.kube/config
 
-#####################################
-# Validation
-#####################################
-echo "Validating setup..."
-
-sudo -u jenkins docker ps >/dev/null 2>&1 || {
-  echo "ERROR: Jenkins cannot access Docker"
-  exit 1
-}
-
-sudo -u jenkins kubectl get nodes >/dev/null 2>&1 || {
-  echo "WARNING: kubectl access not ready yet (Minikube may still be starting)"
-}
+#################################
+# Restart Jenkins
+#################################
+systemctl restart jenkins
 
 echo "=== BOOTSTRAP COMPLETE ==="
-echo "Jenkins URL: http://<EC2_PUBLIC_IP>:8080"
+echo "Jenkins: http://<EC2_PUBLIC_IP>:8080"
 
 
 
