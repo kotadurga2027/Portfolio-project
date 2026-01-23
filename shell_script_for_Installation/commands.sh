@@ -72,12 +72,19 @@ rm -f minikube-linux-amd64
 # ==============================
 # Verify Minikube installation
 # ==============================
-echo "Verifying Minikube..."
-sudo -u ec2-user -i bash <<'EOF'
-export PATH=$PATH:/usr/local/bin
-which minikube
-minikube version
+# echo "Verifying Minikube..."
+# sudo -u ec2-user -i bash <<'EOF'
+# export PATH=$PATH:/usr/local/bin
+# which minikube
+# minikube version
+# EOF
+
+sudo -u jenkins -i bash <<'EOF'
+export PATH=/usr/local/bin:$PATH
+export MINIKUBE_HOME=/var/lib/jenkins
+minikube start --driver=docker
 EOF
+
 
 
 # ==============================

@@ -17,13 +17,14 @@ pipeline {
         }
 
         stage('Build Docker Image') {
-            steps {
-                sh '''
-                eval $(minikube docker-env)
-                docker build -t portfolio-app ./app
-                '''
-            }
-        }
+    steps {
+        sh '''
+        export PATH=/usr/local/bin:$PATH
+        docker build -t portfolio-app:latest .
+        '''
+       }
+    }
+
 
         stage('Deploy to Kubernetes') {
             steps {
