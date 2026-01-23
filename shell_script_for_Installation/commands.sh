@@ -84,7 +84,7 @@ systemctl restart jenkins
 echo "=== BOOTSTRAP COMPLETE ==="
 echo "Access Jenkins: http://<EC2_PUBLIC_IP>:8080"
 
- # ...........................................................
+ # .........................................................
 
 
 # #!/bin/bash
