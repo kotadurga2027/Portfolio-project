@@ -1,90 +1,110 @@
 #!/bin/bash
 set -e
 
+# Ensure script is run as root
 if [ "$EUID" -ne 0 ]; then
-  echo "Please run as root."
-  exit 1
+    echo "Please run as root."
+    exit 1
 fi
 
-echo "=== BOOTSTRAP STARTED ==="
+echo "=== Running bootstrap script ==="
 
-# ---------------------------
-# Base tools
-# ---------------------------
-dnf install -y curl wget unzip git ca-certificates yum-utils
+# ==============================
+# Install basic tools
+# ==============================
+dnf install -y ca-certificates curl wget unzip git yum-utils
 update-ca-trust
 
-# ---------------------------
-# Java 17
-# ---------------------------
+# ==============================
+# Install Java 17
+# ==============================
 dnf install -y java-17-openjdk
 
-# ---------------------------
-# Jenkins
-# ---------------------------
-curl -fsSL https://pkg.jenkins.io/redhat-stable/jenkins.repo \
-  -o /etc/yum.repos.d/jenkins.repo
+# ==============================
+# Install Jenkins
+# ==============================
+echo "Installing Jenkins..."
+curl -fsSL --tlsv1.2 https://pkg.jenkins.io/redhat-stable/jenkins.repo -o /etc/yum.repos.d/jenkins.repo
 rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
 dnf install -y jenkins
+
 systemctl enable jenkins
 systemctl start jenkins
 
-# ---------------------------
-# Podman (rootless)
-# ---------------------------
-dnf install -y podman podman-docker
+# ==============================
+# Install Podman (instead of Docker)
+# ==============================
+echo "Installing Podman..."
+dnf install -y podman buildah
 
-# No need to add users to a group for Podman
+# Configure rootless Podman for Jenkins
+echo "Configuring rootless Podman for Jenkins..."
+useradd -m jenkins || true  # ensure user exists
+echo "jenkins:100000:65536" >> /etc/subuid
+echo "jenkins:100000:65536" >> /etc/subgid
 
-# ---------------------------
-# Terraform
-# ---------------------------
+# Enable lingering for Jenkins to allow systemd inside Podman
+loginctl enable-linger jenkins
+
+# Initialize Podman storage for Jenkins
+sudo -u jenkins podman system migrate
+
+# ==============================
+# Add ec2-user and Jenkins to Podman group
+# ==============================
+usermod -aG podman ec2-user
+usermod -aG podman jenkins
+
+# ==============================
+# Install Terraform
+# ==============================
+echo "Installing Terraform..."
 dnf config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
 dnf install -y terraform
 
-# ---------------------------
-# kubectl
-# ---------------------------
+# ==============================
+# Install kubectl
+# ==============================
+echo "Installing kubectl..."
 K8S_VERSION=$(curl -fsSL https://dl.k8s.io/release/stable.txt)
-curl -fsSL -o /usr/local/bin/kubectl \
-  https://dl.k8s.io/release/${K8S_VERSION}/bin/linux/amd64/kubectl
+curl -fsSL -o /usr/local/bin/kubectl https://dl.k8s.io/release/${K8S_VERSION}/bin/linux/amd64/kubectl
 chmod +x /usr/local/bin/kubectl
+kubectl version --client=true
 
-# ---------------------------
-# Minikube
-# ---------------------------
+# ==============================
+# Install Minikube
+# ==============================
+echo "Installing Minikube..."
 curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
 install minikube-linux-amd64 /usr/local/bin/minikube
 rm -f minikube-linux-amd64
 
-# ---------------------------
-# Start Minikube (Podman driver) as ec2-user
-# ---------------------------
+# ==============================
+# Start Minikube as ec2-user
+# ==============================
+echo "Starting Minikube as ec2-user..."
 sudo -u ec2-user -i bash <<'EOF'
-export PATH=/usr/local/bin:$PATH
 export MINIKUBE_HOME=/home/ec2-user
-
-minikube delete || true
-minikube start --driver=podman --memory=3072 --cpus=2
+export PATH=$PATH:/usr/local/bin
+minikube start --driver=podman
 EOF
 
-# ---------------------------
+# ==============================
 # Copy kubeconfig to Jenkins
-# ---------------------------
+# ==============================
 mkdir -p /var/lib/jenkins/.kube
 cp /home/ec2-user/.kube/config /var/lib/jenkins/.kube/config
 chown -R jenkins:jenkins /var/lib/jenkins/.kube
 chmod 600 /var/lib/jenkins/.kube/config
 
-# ---------------------------
-# Restart Jenkins
-# ---------------------------
-systemctl restart jenkins
+# ==============================
+# Verify Podman and Jenkins
+# ==============================
+echo "Verifying Podman for Jenkins..."
+sudo -u jenkins podman info
 
-echo "=== BOOTSTRAP COMPLETE ==="
-echo "Access Jenkins: http://<EC2_PUBLIC_IP>:8080"
+echo "Bootstrap completed successfully!"
 
- # .........................................................
 
 
 # #!/bin/bash
