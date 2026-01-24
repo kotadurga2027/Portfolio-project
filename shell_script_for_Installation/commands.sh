@@ -117,7 +117,7 @@ echo "=== Running bootstrap script ==="
 # ==============================
 # Install basic tools
 # ==============================
-dnf install -y ca-certificates curl wget unzip git yum-utils
+dnf install -y ca-certificates curl wget unzip git yum-utils dnf-plugins-core
 update-ca-trust
 
 # ==============================
@@ -137,11 +137,11 @@ systemctl enable jenkins
 systemctl start jenkins
 
 # ==============================
-# Install Docker (REAL Docker)
+# Install Docker (REAL Docker, not podman)
 # ==============================
 echo "Installing Docker..."
-amazon-linux-extras enable docker -y
-dnf install -y docker
+dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
 systemctl enable docker
 systemctl start docker
@@ -150,7 +150,6 @@ systemctl start docker
 if ! getent group docker >/dev/null; then
     groupadd docker
 fi
-
 usermod -aG docker jenkins
 usermod -aG docker ec2-user
 
@@ -207,7 +206,7 @@ chown -R jenkins:jenkins /var/lib/jenkins/.kube
 chmod 600 /var/lib/jenkins/.kube/config
 
 # ==============================
-# Generate SSH key for Terraform/AWS EC2 access
+# Generate SSH key for Terraform/AWS
 # ==============================
 echo "Generating SSH key for AWS EC2 access..."
 sudo -u jenkins mkdir -p /var/lib/jenkins/.ssh
