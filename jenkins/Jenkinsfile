@@ -1,8 +1,60 @@
+// pipeline {
+//     agent any
+
+//     environment {
+//         KUBECONFIG = '/var/lib/jenkins/.kube/config'
+//     }
+
+//     stages {
+
+//         stage('Terraform Infra') {
+//             steps {
+//                 dir('terraform') {
+//                     sh 'terraform init -upgrade'
+//                     sh 'terraform apply -auto-approve'
+//                 }
+//             }
+//         }
+
+//         stage('Build Docker Image') {
+//     steps {
+//         sh '''
+//         export PATH=/usr/local/bin:$PATH
+//         docker build -t portfolio-app:latest .
+//         '''
+//        }
+//     }
+
+
+//         stage('Deploy to Kubernetes') {
+//             steps {
+//                 dir('kubernetes') {
+//                     sh 'kubectl apply -f .'
+//                 }
+//             }
+//         }
+
+//         stage('EC2 Automation') {
+//             steps {
+//                 dir('python-automation') {
+//                     sh 'python3 start_stop_ec2.py'
+//                 }
+//             }
+//         }
+//     }
+// }
+
+// /// complete code ///
+
+
+
 pipeline {
     agent any
 
     environment {
         KUBECONFIG = '/var/lib/jenkins/.kube/config'
+        PATH = "/usr/local/bin:/usr/bin:/bin"
+        SSH_KEY = '/var/lib/jenkins/.ssh/portfolio-key'
     }
 
     stages {
@@ -10,26 +62,51 @@ pipeline {
         stage('Terraform Infra') {
             steps {
                 dir('terraform') {
-                    sh 'terraform init -upgrade'
-                    sh 'terraform apply -auto-approve'
+                    sh '''
+                        terraform init -upgrade
+                        terraform apply -auto-approve
+                    '''
                 }
             }
         }
 
-        stage('Build Docker Image') {
-    steps {
-        sh '''
-        export PATH=/usr/local/bin:$PATH
-        docker build -t portfolio-app:latest .
-        '''
-       }
-    }
+        stage('Verify EC2 SSH Access') {
+            steps {
+                dir('terraform') {
+                    sh '''
+                        EC2_IP=$(terraform output -raw instance_ip)
+                        ssh -o StrictHostKeyChecking=no -i $SSH_KEY ec2-user@$EC2_IP "echo SSH Connected"
+                    '''
+                }
+            }
+        }
 
+        stage('Start Minikube') {
+            steps {
+                sh '''
+                    export MINIKUBE_HOME=/var/lib/jenkins
+                    minikube status || minikube start --driver=docker
+                '''
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                    export MINIKUBE_HOME=/var/lib/jenkins
+                    eval $(minikube docker-env)
+                    docker build -t portfolio-app:latest .
+                '''
+            }
+        }
 
         stage('Deploy to Kubernetes') {
             steps {
                 dir('kubernetes') {
-                    sh 'kubectl apply -f .'
+                    sh '''
+                        kubectl apply -f .
+                        kubectl rollout status deployment/portfolio-app
+                    '''
                 }
             }
         }
@@ -37,11 +114,20 @@ pipeline {
         stage('EC2 Automation') {
             steps {
                 dir('python-automation') {
-                    sh 'python3 start_stop_ec2.py'
+                    sh '''
+                        python3 start_stop_ec2.py
+                    '''
                 }
             }
         }
     }
-}
 
-/// complete code ///
+    post {
+        success {
+            echo "✅ Pipeline completed successfully"
+        }
+        failure {
+            echo "❌ Pipeline failed"
+        }
+    }
+}

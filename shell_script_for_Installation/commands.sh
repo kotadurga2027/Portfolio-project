@@ -32,34 +32,27 @@ systemctl enable jenkins
 systemctl start jenkins
 
 # ==============================
-# Configure Docker permissions (AUTOMATED)
+# Configure Docker permissions
 # ==============================
 echo "Configuring Docker permissions..."
-
-# Create docker group if it does not exist
 if ! getent group docker >/dev/null; then
     groupadd docker
 fi
 
-# Add users to docker group
 usermod -aG docker jenkins
 usermod -aG docker ec2-user
 
-# Ensure docker socket permissions
 if [ -S /var/run/docker.sock ]; then
     chown root:docker /var/run/docker.sock
     chmod 660 /var/run/docker.sock
 fi
 
-# Restart services so permissions take effect
 systemctl restart docker
 systemctl restart jenkins
-
-# Wait for Jenkins to come up cleanly
 sleep 20
 
 # ==============================
-# Install Terraform for instance creation
+# Install Terraform
 # ==============================
 echo "Installing Terraform..."
 dnf config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
@@ -83,43 +76,13 @@ install minikube-linux-amd64 /usr/local/bin/minikube
 rm -f minikube-linux-amd64
 
 # ==============================
-# Verify Minikube installation
-# ==============================
-# echo "Verifying Minikube..."
-# sudo -u ec2-user -i bash <<'EOF'
-# export PATH=$PATH:/usr/local/bin
-# which minikube
-# minikube version
-# EOF
-
-sudo -u jenkins -i bash <<'EOF'
-export PATH=/usr/local/bin:$PATH
-export MINIKUBE_HOME=/var/lib/jenkins
-minikube start --driver=docker
-EOF
-
-
-
-# ==============================
 # Start Minikube as Jenkins user
 # ==============================
-echo "Starting Minikube for Jenkins..."
 sudo -u jenkins -i bash <<'EOF'
 export MINIKUBE_HOME=/var/lib/jenkins
 export PATH=$PATH:/usr/local/bin
 minikube start --driver=docker
 EOF
-
-
-# # ==============================
-# # Copy kubeconfig to Jenkins
-# # ==============================
-# mkdir -p /var/lib/jenkins/.kube
-# cp /home/ec2-user/.kube/config /var/lib/jenkins/.kube/config
-# chown -R jenkins:jenkins /var/lib/jenkins/.kube
-# chmod 600 /var/lib/jenkins/.kube/config
-
-# # ==============================
 
 # ==============================
 # Ensure Jenkins kubeconfig exists
@@ -128,4 +91,13 @@ mkdir -p /var/lib/jenkins/.kube
 chown -R jenkins:jenkins /var/lib/jenkins/.kube
 chmod 600 /var/lib/jenkins/.kube/config
 
+# ==============================
+# Generate SSH key for Terraform/AWS
+# ==============================
+echo "Generating SSH key for AWS EC2 access..."
+sudo -u jenkins mkdir -p /var/lib/jenkins/.ssh
+sudo -u jenkins ssh-keygen -t rsa -b 4096 -f /var/lib/jenkins/.ssh/portfolio-key -N ""
+chown jenkins:jenkins /var/lib/jenkins/.ssh/portfolio-key*
+chmod 600 /var/lib/jenkins/.ssh/portfolio-key
 
+echo "=== Bootstrap script completed ==="

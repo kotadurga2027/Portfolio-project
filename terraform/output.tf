@@ -1,7 +1,9 @@
-output "instance_ip" {
-  value = aws_instance.portfolio.public_ip
+output "public_ip" {
+  description = "Public IP of the EC2 instance"
+  value       = aws_instance.portfolio.public_ip
 }
 
-output "instance_id" {
-  value = aws_instance.portfolio.id
+output "private_ip" {
+  description = "Private IP of the EC2 instance"
+  value       = aws_instance.portfolio.private_ip
 }
